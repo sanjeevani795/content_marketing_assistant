@@ -1,0 +1,9 @@
+app:
+  env: development
+  log_level: DEBUG
+services:
+  llm_provider: openai
+  research_provider: serpapi
+  image_provider: openai
+quality:
+  min_score: 70

@@ -1,0 +1,13 @@
+providers:
+  llm:
+    primary: openai
+    fallback: [anthropic, gemini]
+  research:
+    primary: serpapi
+    fallback: [perplexity, tavily]
+  image:
+    primary: dalle3
+    fallback: [stability, imagen]
+retries:
+  max_attempts: 3
+  backoff_seconds: [1, 2, 4]
