@@ -1,9 +1,12 @@
+from typing import Optional
+
+
 def format_content_package(
     topic: str,
     research: dict,
-    blog: str | None = None,
-    linkedin: str | None = None,
-    image: dict | None = None,
+    blog: Optional[str] = None,
+    linkedin: Optional[str] = None,
+    image: Optional[dict] = None,
 ) -> dict:
     return {
         "topic": topic,
