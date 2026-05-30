@@ -2,7 +2,7 @@
 title: Content Marketing Assistant
 emoji: "🧠"
 colorFrom: indigo
-colorTo: violet
+colorTo: blue
 sdk: streamlit
 sdk_version: "1.45.1"
 app_file: src/web_app/streamlit_app.py
