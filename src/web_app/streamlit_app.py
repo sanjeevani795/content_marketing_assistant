@@ -6,6 +6,61 @@ st.set_page_config(page_title="Content Marketing Assistant", page_icon="🧠", l
 st.title("Content Marketing Assistant")
 st.caption("Multi-agent conversational system for research, SEO blogs, LinkedIn posts, and image generation.")
 
+
+def render_research_report(report: dict) -> None:
+    summary = report.get("summary")
+    findings = report.get("findings", [])
+    sources = report.get("sources", [])
+    provider = report.get("provider", "unknown")
+
+    st.markdown(f"**Provider:** `{provider}`")
+
+    if summary:
+        st.markdown("### Summary")
+        st.markdown(summary)
+
+    if findings:
+        st.markdown("### Key Findings")
+        for finding in findings:
+            if finding:
+                st.markdown(f"- {finding}")
+
+    if sources:
+        st.markdown("### Sources")
+        for source in sources:
+            title = source.get("title", "Untitled source")
+            url = source.get("url", "")
+            snippet = source.get("snippet", "")
+            if url:
+                st.markdown(f"- [{title}]({url})")
+            else:
+                st.markdown(f"- {title}")
+            if snippet:
+                st.caption(snippet)
+
+    with st.expander("Show raw research JSON", expanded=False):
+        st.json(report)
+
+
+def render_quality_analysis(quality: dict) -> None:
+    scores = quality.get("scores", {})
+    improvements = quality.get("improvements", [])
+
+    if scores:
+        st.markdown("### Scores")
+        ordered = [("overall", "Overall"), ("research", "Research"), ("blog", "Blog"), ("linkedin", "LinkedIn")]
+        for key, label in ordered:
+            if key in scores:
+                st.markdown(f"- **{label}:** {scores[key]}")
+
+    if improvements:
+        st.markdown("### Suggested Improvements")
+        for item in improvements:
+            st.markdown(f"- {item}")
+
+    with st.expander("Show raw quality JSON", expanded=False):
+        st.json(quality)
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "runs" not in st.session_state:
@@ -34,7 +89,7 @@ if user_input:
 
         if outputs.get("research_report"):
             with st.expander("Research Report", expanded=True):
-                st.json(outputs["research_report"])
+                render_research_report(outputs["research_report"])
 
         if outputs.get("seo_blog"):
             with st.expander("SEO Blog Draft", expanded=True):
@@ -56,7 +111,7 @@ if user_input:
 
         if quality:
             with st.expander("Quality Analysis", expanded=True):
-                st.json(quality)
+                render_quality_analysis(quality)
 
         st.session_state.runs.append(result)
         st.session_state.chat_history.append(
