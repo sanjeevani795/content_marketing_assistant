@@ -38,10 +38,6 @@ def render_research_report(report: dict) -> None:
             if snippet:
                 st.caption(snippet)
 
-    with st.expander("Show raw research JSON", expanded=False):
-        st.json(report)
-
-
 def render_quality_analysis(quality: dict) -> None:
     scores = quality.get("scores", {})
     improvements = quality.get("improvements", [])
