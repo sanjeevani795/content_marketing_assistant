@@ -1,52 +1,50 @@
+---
+title: Content Marketing Assistant
+emoji: "🧠"
+colorFrom: indigo
+colorTo: blue
+sdk: streamlit
+sdk_version: "1.45.1"
+app_file: src/web_app/streamlit_app.py
+pinned: false
+---
+
 # Content Marketing Assistant
 
-A fully functional multi-agent content creation system with conversational UX, intelligent routing, multi-format generation, quality scoring, and Hugging Face Spaces readiness.
+Multi-agent app for research and content creation (blog, LinkedIn, and image concepts) with a conversational Streamlit UI.
 
-## Features
-- Six operational agents:
-  - Query Handler
-  - Deep Research
-  - SEO Blog Writer
-  - LinkedIn Post Writer
-  - Image Generation
-  - Content Strategist
-- Conversational Streamlit interface with multi-turn interaction.
-- Multi-format output: research report, SEO blog, LinkedIn post, and image prompt/asset.
-- Intent-aware routing with strategy orchestration for combined requests.
-- Built-in quality analysis and optimization suggestions.
-- Fallback architecture for graceful degradation when providers are unavailable.
+## What It Does
+- Routes user intent to the right specialized agent
+- Produces:
+  - Research report
+  - SEO blog draft
+  - LinkedIn post draft
+  - Image prompt/asset guidance
+- Supports combined workflows via a content strategist
+- Includes quality checks and fallback handling
 
-## Quick Start
+## Run Locally
 1. `python -m venv .venv && source .venv/bin/activate`
 2. `pip install -r requirements.txt`
 3. `cp .env.example .env`
-4. Add API keys (at least `OPENAI_API_KEY` for full generation).
+4. Add required secrets (at minimum `OPENAI_API_KEY`)
 5. `streamlit run app.py`
 
-## Hugging Face Spaces Deployment
-- Create a Streamlit Space.
-- Push repo with root `app.py` and `requirements.txt`.
-- Add secrets (`OPENAI_API_KEY`, optional research provider keys).
-- App auto-builds and runs.
+## Deploy on Hugging Face Spaces
+1. Create a new **Streamlit** Space
+2. Push this repository
+3. In Space **Settings -> Variables and secrets**, add:
+   - `OPENAI_API_KEY`
+   - Optional provider keys used by research/image integrations
+4. Rebuild the Space
 
-## Demo Scenarios
-- Multi-turn conversational content refinement.
-- Research-to-content workflow.
-- Image generation with optimized prompts.
-- SEO blog generation with keyword optimization.
-- LinkedIn post generation with hashtag strategy.
-- Error handling with provider fallback behavior.
+This README includes the required HF metadata block (`sdk`, `app_file`, etc.), so the Space should launch `app.py` correctly.
 
 ## Project Structure
-- `src/agents/`: specialized agent implementations
-- `src/core/`: routing and workflow entrypoints
-- `src/workflow/`: LangGraph graph and state
-- `src/integrations/`: provider clients
-- `src/utils/`: optimization and quality pipeline
-- `src/web_app/`: Streamlit conversational interface
-- `docs/`: architecture and deployment docs
-
-## Git Remote Fix (if needed)
-If push uses SSH and fails with public key errors:
-- `git remote set-url origin https://github.com/sanjeevani795/content_marketing_assistant.git`
-- `git push -u origin main`
+- `src/agents/` - specialized agents
+- `src/core/` - routing + workflow entrypoints
+- `src/workflow/` - LangGraph state and graph assembly
+- `src/integrations/` - external API clients
+- `src/utils/` - quality + optimization helpers
+- `src/web_app/` - Streamlit app logic
+- `docs/` - architecture/deployment notes
