@@ -1,4 +1,4 @@
-from src.core.router import build_topic, infer_intent, route_request
+from src.core.router import build_topic, infer_intent, is_refinement_query, route_request
 
 
 def test_blog_route():
@@ -48,3 +48,9 @@ def test_build_topic_uses_previous_user_context_for_follow_up():
     )
 
     assert "Original topic context: Research AI GTM strategy for SaaS founders" in topic
+
+
+def test_detects_refinement_query():
+    assert is_refinement_query("Refine this post") is True
+    assert is_refinement_query("Make it shorter") is True
+    assert is_refinement_query("Create a new campaign plan") is False

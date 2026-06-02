@@ -49,3 +49,34 @@ def test_workflow_recovers_from_blog_failure(monkeypatch):
     assert result["node_status"]["blog"] == "fallback"
     assert result["outputs"]["seo_blog"].startswith("# ")
     assert any("blog: blog writer unavailable" in error for error in result["errors"])
+
+
+def test_workflow_refines_previous_linkedin_post(monkeypatch):
+    def fake_refine_linkedin_post(current_draft, instruction, topic, research_summary, include_hashtags=True):
+        assert "Original LinkedIn Post" in current_draft
+        assert instruction == "Refine this post"
+        return "Refined LinkedIn Post"
+
+    def fail_new_linkedin_post(*args, **kwargs):
+        raise AssertionError("New LinkedIn generation should not be used for refinement")
+
+    monkeypatch.setattr(workflow_module, "refine_linkedin_post", fake_refine_linkedin_post)
+    monkeypatch.setattr(workflow_module, "write_linkedin_post", fail_new_linkedin_post)
+
+    prior_run = {
+        "route": "linkedin",
+        "outputs": {
+            "linkedin_post": "Original LinkedIn Post",
+            "research_report": {"summary": "Original research summary", "query": "AI content strategy"},
+        },
+    }
+    chat_history = [
+        {"role": "user", "content": "Write a linkedin post about AI content strategy"},
+        {"role": "assistant", "content": "Completed `linkedin` workflow with quality score 80."},
+    ]
+
+    result = run_workflow("Refine this post", chat_history=chat_history, prior_run=prior_run)
+
+    assert result["route"] == "linkedin"
+    assert result["refinement_request"] is True
+    assert result["outputs"]["linkedin_post"] == "Refined LinkedIn Post"

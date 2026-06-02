@@ -2,13 +2,13 @@ from datetime import datetime
 
 from langgraph.graph import END, StateGraph
 
-from src.agents.blog_writer import write_blog
+from src.agents.blog_writer import refine_blog, write_blog
 from src.agents.content_strategist import format_content_package
 from src.agents.image_generator import generate_image
-from src.agents.linkedin_writer import write_linkedin_post
+from src.agents.linkedin_writer import refine_linkedin_post, write_linkedin_post
 from src.agents.research_agent import run_research
 from src.core.observability import traceable
-from src.core.router import build_topic, infer_intent
+from src.core.router import build_topic, infer_intent, is_refinement_query
 from src.utils.content_optimization import extract_keywords
 from src.utils.quality_validation import evaluate_outputs
 from src.workflow.state_management import WorkflowState
@@ -86,8 +86,31 @@ def _get_research(state: WorkflowState) -> tuple[dict, str]:
         return _fallback_research(state["topic"], str(exc)), "fallback"
 
 
+def _prior_output_for_route(state: WorkflowState, route: str):
+    outputs = state.get("prior_outputs") or {}
+    key_map = {
+        "blog": "seo_blog",
+        "linkedin": "linkedin_post",
+        "image": "image_asset",
+        "research": "research_report",
+    }
+    return outputs.get(key_map.get(route, ""))
+
+
 def _get_blog(state: WorkflowState, research_summary: str) -> tuple[str, str]:
     try:
+        prior_blog = _prior_output_for_route(state, "blog")
+        if state.get("refinement_request") and isinstance(prior_blog, str) and prior_blog.strip():
+            return (
+                refine_blog(
+                    current_draft=prior_blog,
+                    instruction=state["user_query"],
+                    topic=state["topic"],
+                    research_summary=research_summary,
+                    keywords=state.get("keywords", []),
+                ),
+                "ok",
+            )
         return (
             write_blog(
                 topic=state["topic"],
@@ -106,6 +129,17 @@ def _get_blog(state: WorkflowState, research_summary: str) -> tuple[str, str]:
 
 def _get_linkedin(state: WorkflowState, research_summary: str) -> tuple[str, str]:
     try:
+        prior_post = _prior_output_for_route(state, "linkedin")
+        if state.get("refinement_request") and isinstance(prior_post, str) and prior_post.strip():
+            return (
+                refine_linkedin_post(
+                    current_draft=prior_post,
+                    instruction=state["user_query"],
+                    topic=state["topic"],
+                    research_summary=research_summary,
+                ),
+                "ok",
+            )
         return (
             write_linkedin_post(topic=state["topic"], research_summary=research_summary),
             "ok",
@@ -135,6 +169,7 @@ def route_node(state: WorkflowState) -> WorkflowState:
         state["route_source"] = routing_details["route_source"]
         state["routing_details"] = routing_details
         state["ambiguity_detected"] = routing_details["ambiguous"]
+        state["refinement_request"] = is_refinement_query(state["user_query"])
         state["intent_scores"] = scores
         state["keywords"] = extract_keywords(state["user_query"])
         state["topic"] = build_topic(state["user_query"], chat_history=state.get("chat_history"))
@@ -144,6 +179,7 @@ def route_node(state: WorkflowState) -> WorkflowState:
         state["route_source"] = "routing_error_fallback"
         state["routing_details"] = {"error": str(exc), "route_source": "routing_error_fallback"}
         state["ambiguity_detected"] = True
+        state["refinement_request"] = False
         state["intent_scores"] = {}
         state["keywords"] = extract_keywords(state["user_query"])
         state["topic"] = state["user_query"]

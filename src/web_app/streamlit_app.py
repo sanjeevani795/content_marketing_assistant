@@ -42,6 +42,7 @@ def render_research_report(report: dict) -> None:
 def render_quality_analysis(quality: dict) -> None:
     scores = quality.get("scores", {})
     improvements = quality.get("improvements", [])
+    metrics = quality.get("metrics", {})
 
     if scores:
         st.markdown("### Scores")
@@ -55,8 +56,9 @@ def render_quality_analysis(quality: dict) -> None:
         for item in improvements:
             st.markdown(f"- {item}")
 
-    st.markdown("### Quality Details")
-    st.json(quality)
+    if metrics:
+        st.markdown("### Metrics")
+        st.json(metrics)
 
 
 def render_execution_notes(result: dict) -> None:
@@ -95,7 +97,11 @@ if user_input:
 
     with st.chat_message("assistant"):
         with st.spinner("Running multi-agent workflow..."):
-            result = handle_query(user_input, st.session_state.chat_history)
+            result = handle_query(
+                user_input,
+                st.session_state.chat_history,
+                prior_run=st.session_state.runs[-1] if st.session_state.runs else None,
+            )
 
         route = result.get("route", "unknown")
         outputs = result.get("outputs", {})

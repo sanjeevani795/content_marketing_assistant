@@ -61,3 +61,43 @@ def write_blog(topic: str, research_summary: str, keywords: list[str]) -> str:
         primary_keyword=primary,
         secondary_keywords=secondary,
     )
+
+
+@traceable(name="seo_blog_refinement_agent", run_type="chain")
+def refine_blog(
+    current_draft: str,
+    instruction: str,
+    topic: str,
+    research_summary: str,
+    keywords: list[str],
+) -> str:
+    llm = OpenAIClient()
+    primary = keywords[0] if keywords else topic
+    secondary = keywords[1:6]
+
+    if llm.enabled:
+        refined = llm.generate(
+            prompt=(
+                f"Refine this existing SEO blog draft based on the user instruction.\n"
+                f"User instruction: {instruction}\n"
+                f"Topic: {topic}\n"
+                f"Primary keyword: {primary}\n"
+                f"Secondary keywords: {', '.join(secondary) if secondary else 'N/A'}\n"
+                f"Research context:\n{research_summary}\n\n"
+                f"Current draft:\n{current_draft}\n\n"
+                "Keep the strongest ideas, revise the actual draft instead of starting over, and preserve markdown structure."
+            ),
+            system="You are an expert SEO editor refining an existing blog draft.",
+            temperature=0.4,
+        )
+    else:
+        refined = (
+            current_draft.rstrip()
+            + f"\n\n## Refinement Notes\nThis version was refined to address the follow-up request: {instruction}."
+        )
+
+    return optimize_for_seo(
+        refined,
+        primary_keyword=primary,
+        secondary_keywords=secondary,
+    )

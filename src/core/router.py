@@ -35,6 +35,20 @@ FOLLOW_UP_TERMS = {
     "refine",
 }
 
+REFINEMENT_TERMS = {
+    "refine",
+    "rewrite",
+    "revise",
+    "shorten",
+    "expand",
+    "improve",
+    "tighten",
+    "polish",
+    "edit",
+    "rework",
+    "make",
+}
+
 
 def _score(query: str, terms: list[str]) -> float:
     return float(sum(1 for term in terms if term in query))
@@ -63,6 +77,16 @@ def _is_follow_up_query(query: str) -> bool:
     if len(tokens) <= 4:
         return True
     return any(token in FOLLOW_UP_TERMS for token in tokens)
+
+
+def is_refinement_query(query: str) -> bool:
+    tokens = _query_tokens(query)
+    if not tokens:
+        return False
+    return any(token in REFINEMENT_TERMS for token in tokens) and any(
+        token in {"this", "that", "post", "blog", "article", "draft", "it", "copy", "version", "shorter", "longer", "punchier", "clearer", "stronger"}
+        for token in tokens
+    )
 
 
 def _is_ambiguous(query: str, scores: dict[Route, float]) -> bool:

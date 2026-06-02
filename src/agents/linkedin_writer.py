@@ -33,3 +33,40 @@ def write_linkedin_post(topic: str, research_summary: str, include_hashtags: boo
         research_summary=research_summary,
         include_hashtags=include_hashtags,
     )
+
+
+@traceable(name="linkedin_post_refinement_agent", run_type="chain")
+def refine_linkedin_post(
+    current_draft: str,
+    instruction: str,
+    topic: str,
+    research_summary: str,
+    include_hashtags: bool = True,
+) -> str:
+    llm = OpenAIClient()
+
+    if llm.enabled:
+        refined = llm.generate(
+            prompt=(
+                f"Refine this existing LinkedIn post based on the user instruction.\n"
+                f"User instruction: {instruction}\n"
+                f"Topic: {topic}\n"
+                f"Research context:\n{research_summary}\n\n"
+                f"Current post:\n{current_draft}\n\n"
+                "Revise the actual post instead of writing from scratch. Keep it professional, engaging, and platform-native."
+            ),
+            system="You are a LinkedIn editor refining an existing post.",
+            temperature=0.5,
+        )
+    else:
+        refined = (
+            current_draft.rstrip()
+            + f"\n\nRefinement request applied: {instruction}"
+        )
+
+    return optimize_linkedin_post(
+        refined,
+        topic=topic,
+        research_summary=research_summary,
+        include_hashtags=include_hashtags,
+    )
