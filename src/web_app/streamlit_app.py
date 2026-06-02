@@ -55,8 +55,8 @@ def render_quality_analysis(quality: dict) -> None:
         for item in improvements:
             st.markdown(f"- {item}")
 
-    with st.expander("Show raw quality JSON", expanded=False):
-        st.json(quality)
+    st.markdown("### Quality Details")
+    st.json(quality)
 
 
 def render_execution_notes(result: dict) -> None:
@@ -83,15 +83,15 @@ if "runs" not in st.session_state:
     st.session_state.runs = []
 
 for turn in st.session_state.chat_history:
-    if turn["role"] != "assistant":
-        continue
-    with st.chat_message("assistant"):
+    with st.chat_message(turn["role"]):
         st.markdown(turn["content"])
 
 user_input = st.chat_input("Ask for research, blog, LinkedIn, image, or a full campaign package")
 
 if user_input:
     st.session_state.chat_history.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
     with st.chat_message("assistant"):
         with st.spinner("Running multi-agent workflow..."):
@@ -103,10 +103,6 @@ if user_input:
 
         st.markdown(f"**Route selected:** `{route}`")
         render_execution_notes(result)
-
-        if outputs.get("research_report"):
-            with st.expander("Research Report", expanded=True):
-                render_research_report(outputs["research_report"])
 
         if outputs.get("seo_blog"):
             with st.expander("SEO Blog Draft", expanded=True):
