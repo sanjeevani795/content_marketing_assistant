@@ -30,6 +30,14 @@ Multi-agent app for research and content creation (blog, LinkedIn, and image con
 4. Add required secrets (at minimum `OPENAI_API_KEY`)
 5. `streamlit run app.py`
 
+## LangSmith Observability
+- Install dependencies with `pip install -r requirements.txt`
+- In `.env`, set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY`
+- Optional: set `LANGSMITH_PROJECT` to customize the project name
+- Optional: set `LANGSMITH_ENDPOINT` if your LangSmith workspace is outside the default US region
+
+The workflow now emits LangSmith traces for the overall run, routing, agent nodes, and raw OpenAI SDK calls when tracing is enabled.
+
 ## Deploy on Hugging Face Spaces
 1. Create a new **Streamlit** Space
 2. Push this repository

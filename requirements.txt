@@ -1,5 +1,6 @@
 streamlit>=1.36.0
 langgraph>=0.2.0
+langsmith>=0.1.99
 openai>=1.40.0
 pydantic>=2.8.0
 python-dotenv>=1.0.1

@@ -1,3 +1,4 @@
+import src.workflow.langgraph_workflow as workflow_module
 from src.core.workflow import run_workflow
 
 
@@ -15,3 +16,31 @@ def test_workflow_strategy_outputs():
     assert "seo_blog" in outputs
     assert "linkedin_post" in outputs
     assert "image_asset" in outputs
+
+
+def test_workflow_uses_history_for_follow_up_context():
+    chat_history = [
+        {"role": "user", "content": "Research AI GTM strategy for SaaS founders"},
+        {"role": "assistant", "content": "Completed `research` workflow with quality score 80."},
+        {"role": "user", "content": "Turn this into a linkedin post"},
+    ]
+
+    result = run_workflow("Turn this into a linkedin post", chat_history=chat_history)
+
+    assert result["route"] == "linkedin"
+    assert result["route_source"] in {"query", "history_boost", "history_fallback"}
+    assert "Original topic context: Research AI GTM strategy for SaaS founders" in result["topic"]
+
+
+def test_workflow_recovers_from_blog_failure(monkeypatch):
+    def fail_blog(*args, **kwargs):
+        raise RuntimeError("blog writer unavailable")
+
+    monkeypatch.setattr(workflow_module, "write_blog", fail_blog)
+
+    result = run_workflow("Write an SEO blog article about AI GTM")
+
+    assert result["route"] == "blog"
+    assert result["node_status"]["blog"] == "fallback"
+    assert result["outputs"]["seo_blog"].startswith("# ")
+    assert any("blog: blog writer unavailable" in error for error in result["errors"])

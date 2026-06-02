@@ -1,6 +1,7 @@
 import streamlit as st
 
 from src.agents.query_handler import handle_query
+from src.core.observability import langsmith_project_name, tracing_enabled
 
 st.set_page_config(page_title="Content Marketing Assistant", page_icon="🧠", layout="wide")
 st.title("Content Marketing Assistant")
@@ -57,6 +58,25 @@ def render_quality_analysis(quality: dict) -> None:
     with st.expander("Show raw quality JSON", expanded=False):
         st.json(quality)
 
+
+def render_execution_notes(result: dict) -> None:
+    route_source = result.get("route_source", "query")
+    routing_details = result.get("routing_details", {})
+    errors = result.get("errors", [])
+
+    st.caption(f"Routing source: `{route_source}`")
+    if result.get("ambiguity_detected"):
+        st.info("The request looked ambiguous, so the router used conversation history or a safe fallback path.")
+
+    if routing_details.get("last_route"):
+        st.caption(f"Last routed agent in history: `{routing_details['last_route']}`")
+
+    if errors:
+        st.warning("One or more agents hit an error and switched to fallback behavior.")
+        with st.expander("Execution errors", expanded=False):
+            for item in errors:
+                st.markdown(f"- {item}")
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "runs" not in st.session_state:
@@ -82,6 +102,7 @@ if user_input:
         quality = result.get("quality", {})
 
         st.markdown(f"**Route selected:** `{route}`")
+        render_execution_notes(result)
 
         if outputs.get("research_report"):
             with st.expander("Research Report", expanded=True):
@@ -119,6 +140,10 @@ if user_input:
 
 with st.sidebar:
     st.subheader("Conversation")
+    st.caption(
+        f"LangSmith tracing: `{'enabled' if tracing_enabled() else 'disabled'}`"
+        f" | project: `{langsmith_project_name()}`"
+    )
     if st.button("Clear conversation"):
         st.session_state.chat_history = []
         st.session_state.runs = []

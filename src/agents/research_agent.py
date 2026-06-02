@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.core.observability import traceable
 from src.integrations.perplexity_client import PerplexityClient
 from src.integrations.serp_client import SerpClient
 from src.integrations.openai_client import OpenAIClient
@@ -29,6 +30,7 @@ def _local_research_fallback(query: str) -> dict:
     }
 
 
+@traceable(name="deep_research_agent", run_type="chain")
 def run_research(query: str) -> dict:
     serp = SerpClient()
     pplx = PerplexityClient()

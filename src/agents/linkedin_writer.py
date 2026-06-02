@@ -1,4 +1,5 @@
 from src.integrations.openai_client import OpenAIClient
+from src.core.observability import traceable
 
 
 def _hashtags(topic: str) -> list[str]:
@@ -7,6 +8,7 @@ def _hashtags(topic: str) -> list[str]:
     return [topic_tag] + base
 
 
+@traceable(name="linkedin_post_writer_agent", run_type="chain")
 def write_linkedin_post(topic: str, research_summary: str, include_hashtags: bool = True) -> str:
     llm = OpenAIClient()
 

@@ -1,4 +1,5 @@
 from src.integrations.openai_client import OpenAIClient
+from src.core.observability import traceable
 from src.utils.content_optimization import optimize_for_seo
 
 
@@ -29,6 +30,7 @@ Use this framework to turn research into repeatable content operations.
 """
 
 
+@traceable(name="seo_blog_writer_agent", run_type="chain")
 def write_blog(topic: str, research_summary: str, keywords: list[str]) -> str:
     llm = OpenAIClient()
     primary = keywords[0] if keywords else topic
