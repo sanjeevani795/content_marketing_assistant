@@ -1,11 +1,6 @@
 from src.integrations.openai_client import OpenAIClient
 from src.core.observability import traceable
-
-
-def _hashtags(topic: str) -> list[str]:
-    base = ["#Marketing", "#ContentStrategy", "#AI"]
-    topic_tag = "#" + "".join(ch for ch in topic.title() if ch.isalnum())[:24]
-    return [topic_tag] + base
+from src.utils.content_optimization import optimize_linkedin_post
 
 
 @traceable(name="linkedin_post_writer_agent", run_type="chain")
@@ -17,7 +12,8 @@ def write_linkedin_post(topic: str, research_summary: str, include_hashtags: boo
             prompt=(
                 f"Write a high-engagement LinkedIn post on: {topic}.\n"
                 f"Context:\n{research_summary}\n"
-                "Use: strong hook, short paragraphs, one tactical takeaway, and one question at the end."
+                "Use: strong hook, short paragraphs, one tactical takeaway, a clear CTA question, "
+                "professional tone with personality, and line breaks that feel easy to scan on mobile."
             ),
             system="You are a LinkedIn content strategist.",
             temperature=0.7,
@@ -31,6 +27,9 @@ def write_linkedin_post(topic: str, research_summary: str, include_hashtags: boo
             "What would this change in your content workflow?"
         )
 
-    if include_hashtags:
-        post = post.rstrip() + "\n\n" + " ".join(_hashtags(topic))
-    return post
+    return optimize_linkedin_post(
+        post,
+        topic=topic,
+        research_summary=research_summary,
+        include_hashtags=include_hashtags,
+    )

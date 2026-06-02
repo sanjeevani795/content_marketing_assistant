@@ -16,6 +16,11 @@ def test_workflow_strategy_outputs():
     assert "seo_blog" in outputs
     assert "linkedin_post" in outputs
     assert "image_asset" in outputs
+    assert "## Internal Linking Suggestions" in outputs["seo_blog"]
+    assert "Meta Description:" in outputs["seo_blog"]
+    assert 1300 <= len(outputs["linkedin_post"]) <= 1600
+    assert result["quality"]["metrics"]["blog"]["h3_count"] >= 1
+    assert 8 <= result["quality"]["metrics"]["linkedin"]["hashtag_count"] <= 12
 
 
 def test_workflow_uses_history_for_follow_up_context():

@@ -1,3 +1,11 @@
+from src.utils.content_optimization import (
+    analyze_linkedin_post,
+    analyze_seo_content,
+    extract_keywords,
+    readability_score,
+)
+
+
 def quality_score(content: str) -> float:
     text = (content or "").strip()
     if not text:
@@ -22,29 +30,119 @@ def quality_score(content: str) -> float:
     return min(100.0, score)
 
 
+def _blog_score(blog: str, research_report: dict) -> tuple[float, dict, list[str]]:
+    query = (research_report or {}).get("query", "")
+    candidate_keywords = extract_keywords(query or blog)
+    keyword = candidate_keywords[0] if candidate_keywords else "content strategy"
+    metrics = analyze_seo_content(blog, keyword)
+    score = quality_score(blog)
+    improvements = []
+
+    if 1.0 <= metrics["keyword_density"] <= 2.0:
+        score += 8
+    elif metrics["keyword_density"] < 1.0:
+        improvements.append("Increase target keyword usage toward the 1-2% range.")
+    else:
+        improvements.append("Reduce target keyword repetition to stay near the 1-2% range.")
+
+    if 150 <= metrics["meta_description_length"] <= 160:
+        score += 7
+    else:
+        improvements.append("Adjust the meta description to 150-160 characters.")
+
+    if metrics["h1_count"] == 1 and metrics["h2_count"] >= 2 and metrics["h3_count"] >= 1:
+        score += 8
+    else:
+        improvements.append("Strengthen blog header structure with one H1, multiple H2s, and at least one H3.")
+
+    if metrics["internal_link_suggestions"] >= 1:
+        score += 5
+    else:
+        improvements.append("Add internal linking suggestions to guide related content journeys.")
+
+    if metrics["readability_grade"] <= 12:
+        score += 7
+    else:
+        improvements.append("Lower the Flesch-Kincaid grade for easier scanning.")
+
+    return min(100.0, round(score, 2)), metrics, improvements
+
+
+def _linkedin_score(linkedin: str) -> tuple[float, dict, list[str]]:
+    metrics = analyze_linkedin_post(linkedin)
+    score = quality_score(linkedin)
+    improvements = []
+
+    if 1300 <= metrics["character_count"] <= 1600:
+        score += 10
+    elif metrics["character_count"] < 1300:
+        improvements.append("Expand the LinkedIn post to the 1300-1600 character sweet spot.")
+    else:
+        improvements.append("Trim the LinkedIn post to stay within the 1300-1600 character sweet spot.")
+
+    if 8 <= metrics["hashtag_count"] <= 12:
+        score += 8
+    else:
+        improvements.append("Use 8-12 relevant hashtags for discoverability without clutter.")
+
+    if metrics["has_hooks"]:
+        score += 6
+    else:
+        improvements.append("Add a stronger hook in the opening paragraph.")
+
+    if metrics["has_cta"]:
+        score += 6
+    else:
+        improvements.append("End with a clearer engagement prompt or CTA question.")
+
+    if metrics["paragraph_count"] >= 4:
+        score += 5
+    else:
+        improvements.append("Increase line breaks so the post is easier to read on LinkedIn.")
+
+    return min(100.0, round(score, 2)), metrics, improvements
+
+
 def evaluate_outputs(outputs: dict, errors: list[str] = None) -> dict:
     blog = outputs.get("seo_blog") or ""
     linkedin = outputs.get("linkedin_post") or ""
-    research = (outputs.get("research_report") or {}).get("summary", "")
+    research_report = outputs.get("research_report") or {}
+    research = research_report.get("summary", "")
     errors = errors or []
 
+    blog_score, blog_metrics, blog_improvements = _blog_score(blog, research_report)
+    linkedin_score, linkedin_metrics, linkedin_improvements = _linkedin_score(linkedin)
+    research_score = quality_score(research)
+    if readability_score(research) <= 12 and research:
+        research_score = min(100.0, round(research_score + 5, 2))
+
     scores = {
-        "blog": quality_score(blog),
-        "linkedin": quality_score(linkedin),
-        "research": quality_score(research),
+        "blog": blog_score,
+        "linkedin": linkedin_score,
+        "research": research_score,
     }
     scores["overall"] = round(sum(scores.values()) / 3.0, 2)
     if errors:
         scores["overall"] = max(0.0, round(scores["overall"] - min(15.0, len(errors) * 5.0), 2))
 
     improvements = []
-    if scores["blog"] < 75:
-        improvements.append("Expand blog structure with more headings and examples.")
-    if scores["linkedin"] < 70:
-        improvements.append("Strengthen hook and ending question in LinkedIn copy.")
-    if scores["research"] < 70:
+    improvements.extend(blog_improvements)
+    improvements.extend(linkedin_improvements)
+    if research_score < 70:
         improvements.append("Add more concrete data points or citations in research summary.")
     if errors:
         improvements.append("Review fallback outputs because one or more agents hit an execution error.")
 
-    return {"scores": scores, "improvements": improvements, "errors": errors}
+    return {
+        "scores": scores,
+        "improvements": improvements,
+        "errors": errors,
+        "metrics": {
+            "blog": blog_metrics,
+            "linkedin": linkedin_metrics,
+            "research": {
+                "readability_grade": readability_score(research),
+                "character_count": len(research),
+            },
+        },
+    }
