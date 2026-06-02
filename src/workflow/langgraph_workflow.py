@@ -14,6 +14,27 @@ from src.utils.quality_validation import evaluate_outputs
 from src.workflow.state_management import WorkflowState
 
 
+def _prior_topic_context(state: WorkflowState) -> str:
+    prior_outputs = state.get("prior_outputs") or {}
+    prior_research = prior_outputs.get("research_report") or {}
+    if isinstance(prior_research, dict):
+        query = prior_research.get("query", "").strip()
+        if query:
+            return query
+
+    chat_history = state.get("chat_history") or []
+    user_messages = [
+        turn.get("content", "").strip()
+        for turn in chat_history
+        if turn.get("role") == "user" and turn.get("content", "").strip()
+    ]
+    if len(user_messages) >= 2:
+        return user_messages[-2]
+    if user_messages:
+        return user_messages[-1]
+    return state["user_query"]
+
+
 def _record_node_status(state: WorkflowState, node_name: str, status: str) -> None:
     node_status = state.setdefault("node_status", {})
     node_status[node_name] = status
@@ -77,6 +98,10 @@ def _fallback_image(topic: str, prompt: str, reason: str) -> dict:
 def _get_research(state: WorkflowState) -> tuple[dict, str]:
     if state.get("research"):
         return state["research"], "ok"
+
+    prior_research = _prior_output_for_route(state, "research")
+    if state.get("refinement_request") and isinstance(prior_research, dict) and prior_research:
+        return prior_research, "ok"
 
     try:
         research = run_research(state["topic"])
@@ -165,14 +190,29 @@ def route_node(state: WorkflowState) -> WorkflowState:
         route, scores, routing_details = infer_intent(
             state["user_query"], chat_history=state.get("chat_history")
         )
+        refinement_request = is_refinement_query(state["user_query"])
+        if refinement_request:
+            prior_route = state.get("prior_route")
+            if prior_route in {"blog", "linkedin"} and _prior_output_for_route(state, prior_route):
+                route = prior_route
+                routing_details = {
+                    **routing_details,
+                    "route_source": "refinement_followup",
+                    "refinement_target": prior_route,
+                }
         state["route"] = route
         state["route_source"] = routing_details["route_source"]
         state["routing_details"] = routing_details
         state["ambiguity_detected"] = routing_details["ambiguous"]
-        state["refinement_request"] = is_refinement_query(state["user_query"])
+        state["refinement_request"] = refinement_request
         state["intent_scores"] = scores
-        state["keywords"] = extract_keywords(state["user_query"])
-        state["topic"] = build_topic(state["user_query"], chat_history=state.get("chat_history"))
+        if refinement_request:
+            prior_topic = _prior_topic_context(state)
+            state["topic"] = prior_topic
+            state["keywords"] = extract_keywords(prior_topic)
+        else:
+            state["keywords"] = extract_keywords(state["user_query"])
+            state["topic"] = build_topic(state["user_query"], chat_history=state.get("chat_history"))
         _record_node_status(state, "route", "ok")
     except Exception as exc:
         state["route"] = "research"

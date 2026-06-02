@@ -53,4 +53,5 @@ def test_build_topic_uses_previous_user_context_for_follow_up():
 def test_detects_refinement_query():
     assert is_refinement_query("Refine this post") is True
     assert is_refinement_query("Make it shorter") is True
+    assert is_refinement_query("Add a stronger hook in the opening paragraph.") is True
     assert is_refinement_query("Create a new campaign plan") is False

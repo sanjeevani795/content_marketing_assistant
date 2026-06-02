@@ -80,3 +80,49 @@ def test_workflow_refines_previous_linkedin_post(monkeypatch):
     assert result["route"] == "linkedin"
     assert result["refinement_request"] is True
     assert result["outputs"]["linkedin_post"] == "Refined LinkedIn Post"
+
+
+def test_workflow_refinement_prefers_previous_blog_route(monkeypatch):
+    def fake_refine_blog(current_draft, instruction, topic, research_summary, keywords):
+        assert "Original Blog Draft" in current_draft
+        assert instruction == "Add a stronger hook in the opening paragraph."
+        assert "omnijobs.io" in topic.lower()
+        assert "job" in " ".join(keywords)
+        assert research_summary == "Original research summary"
+        return "Refined Blog Draft"
+
+    def fail_new_blog(*args, **kwargs):
+        raise AssertionError("New blog generation should not be used for refinement")
+
+    monkeypatch.setattr(workflow_module, "refine_blog", fake_refine_blog)
+    monkeypatch.setattr(workflow_module, "write_blog", fail_new_blog)
+
+    prior_run = {
+        "route": "blog",
+        "outputs": {
+            "seo_blog": "Original Blog Draft",
+            "research_report": {
+                "summary": "Original research summary",
+                "query": "Write an SEO optimized 200 words blog about https://omnijobs.io/en about why should I use this website for job search?",
+            },
+        },
+    }
+    chat_history = [
+        {
+            "role": "user",
+            "content": "Write an SEO optimized 200 words blog about https://omnijobs.io/en about why should I use this website for job search?",
+        },
+        {"role": "assistant", "content": "Completed `blog` workflow with quality score 60."},
+    ]
+
+    result = run_workflow(
+        "Add a stronger hook in the opening paragraph.",
+        chat_history=chat_history,
+        prior_run=prior_run,
+    )
+
+    assert result["route"] == "blog"
+    assert result["route_source"] == "refinement_followup"
+    assert result["refinement_request"] is True
+    assert result["topic"] == prior_run["outputs"]["research_report"]["query"]
+    assert result["outputs"]["seo_blog"] == "Refined Blog Draft"

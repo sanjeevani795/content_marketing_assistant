@@ -47,6 +47,10 @@ REFINEMENT_TERMS = {
     "edit",
     "rework",
     "make",
+    "add",
+    "change",
+    "update",
+    "remove",
 }
 
 
@@ -84,7 +88,31 @@ def is_refinement_query(query: str) -> bool:
     if not tokens:
         return False
     return any(token in REFINEMENT_TERMS for token in tokens) and any(
-        token in {"this", "that", "post", "blog", "article", "draft", "it", "copy", "version", "shorter", "longer", "punchier", "clearer", "stronger"}
+        token in {
+            "this",
+            "that",
+            "post",
+            "blog",
+            "article",
+            "draft",
+            "it",
+            "copy",
+            "version",
+            "shorter",
+            "longer",
+            "punchier",
+            "clearer",
+            "stronger",
+            "hook",
+            "opening",
+            "paragraph",
+            "intro",
+            "headline",
+            "title",
+            "cta",
+            "ending",
+            "conclusion",
+        }
         for token in tokens
     )
 
