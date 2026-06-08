@@ -54,4 +54,5 @@ def test_detects_refinement_query():
     assert is_refinement_query("Refine this post") is True
     assert is_refinement_query("Make it shorter") is True
     assert is_refinement_query("Add a stronger hook in the opening paragraph.") is True
+    assert is_refinement_query("Trim the previous LinkedIn post to stay within the 1300-1600 character sweet spot.") is True
     assert is_refinement_query("Create a new campaign plan") is False

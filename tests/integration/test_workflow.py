@@ -82,6 +82,48 @@ def test_workflow_refines_previous_linkedin_post(monkeypatch):
     assert result["outputs"]["linkedin_post"] == "Refined LinkedIn Post"
 
 
+def test_workflow_trim_previous_linkedin_post_uses_refinement(monkeypatch):
+    def fake_refine_linkedin_post(current_draft, instruction, topic, research_summary, include_hashtags=True):
+        assert current_draft == "Original LinkedIn Post"
+        assert instruction == "Trim the previous LinkedIn post to stay within the 1300-1600 character sweet spot."
+        assert topic == "AI content strategy for founders"
+        assert research_summary == "Original research summary"
+        return "Trimmed LinkedIn Post"
+
+    def fail_new_linkedin_post(*args, **kwargs):
+        raise AssertionError("Fresh LinkedIn generation should not be used for refinement")
+
+    monkeypatch.setattr(workflow_module, "refine_linkedin_post", fake_refine_linkedin_post)
+    monkeypatch.setattr(workflow_module, "write_linkedin_post", fail_new_linkedin_post)
+
+    prior_run = {
+        "route": "linkedin",
+        "outputs": {
+            "linkedin_post": "Original LinkedIn Post",
+            "research_report": {
+                "summary": "Original research summary",
+                "query": "AI content strategy for founders",
+            },
+        },
+    }
+    chat_history = [
+        {"role": "user", "content": "Write a LinkedIn post about AI content strategy for founders"},
+        {"role": "assistant", "content": "Completed `linkedin` workflow with quality score 81."},
+    ]
+
+    result = run_workflow(
+        "Trim the previous LinkedIn post to stay within the 1300-1600 character sweet spot.",
+        chat_history=chat_history,
+        prior_run=prior_run,
+    )
+
+    assert result["route"] == "linkedin"
+    assert result["route_source"] == "refinement_followup"
+    assert result["refinement_request"] is True
+    assert result["topic"] == "AI content strategy for founders"
+    assert result["outputs"]["linkedin_post"] == "Trimmed LinkedIn Post"
+
+
 def test_workflow_refinement_prefers_previous_blog_route(monkeypatch):
     def fake_refine_blog(current_draft, instruction, topic, research_summary, keywords):
         assert "Original Blog Draft" in current_draft
