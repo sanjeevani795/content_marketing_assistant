@@ -110,6 +110,9 @@ if user_input:
         st.markdown(f"**Route selected:** `{route}`")
         render_execution_notes(result)
 
+        if outputs.get("safety_response"):
+            st.error(outputs["safety_response"])
+
         if outputs.get("seo_blog"):
             with st.expander("SEO Blog Draft", expanded=True):
                 st.markdown(outputs["seo_blog"])

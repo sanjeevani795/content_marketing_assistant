@@ -6,6 +6,8 @@ class WorkflowState(TypedDict, total=False):
     chat_history: list[dict[str, str]]
     prior_route: str
     prior_outputs: dict[str, Any]
+    safety_assessment: dict[str, Any]
+    blocked: bool
     route: str
     route_source: str
     intent_scores: dict[str, float]

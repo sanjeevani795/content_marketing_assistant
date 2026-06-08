@@ -9,6 +9,7 @@ from src.agents.linkedin_writer import refine_linkedin_post, write_linkedin_post
 from src.agents.research_agent import run_research
 from src.core.observability import traceable
 from src.core.router import build_topic, infer_intent, is_refinement_query
+from src.core.safety import assess_request_safety
 from src.utils.content_optimization import extract_keywords
 from src.utils.quality_validation import evaluate_outputs
 from src.workflow.state_management import WorkflowState
@@ -184,9 +185,42 @@ def _get_image(state: WorkflowState) -> tuple[dict, str]:
         return _fallback_image(state["topic"], prompt, str(exc)), "fallback"
 
 
+@traceable(name="blocked_node", run_type="chain")
+def blocked_node(state: WorkflowState) -> WorkflowState:
+    assessment = state.get("safety_assessment", {})
+    state["outputs"] = {
+        "safety_response": assessment.get(
+            "response",
+            "I can't help with that request.",
+        )
+    }
+    _record_node_status(state, "blocked", "ok")
+    return state
+
+
 @traceable(name="route_node", run_type="chain")
 def route_node(state: WorkflowState) -> WorkflowState:
     try:
+        safety = assess_request_safety(state["user_query"])
+        state["safety_assessment"] = safety
+        state["blocked"] = safety["blocked"]
+        if safety["blocked"]:
+            state["route"] = "blocked"
+            state["route_source"] = "safety_guardrail"
+            state["routing_details"] = {
+                "route_source": "safety_guardrail",
+                "category": safety["category"],
+                "reason": safety["reason"],
+                "ambiguous": False,
+            }
+            state["ambiguity_detected"] = False
+            state["refinement_request"] = False
+            state["intent_scores"] = {}
+            state["keywords"] = []
+            state["topic"] = state["user_query"]
+            _record_node_status(state, "route", "blocked")
+            return state
+
         route, scores, routing_details = infer_intent(
             state["user_query"], chat_history=state.get("chat_history")
         )
@@ -326,6 +360,7 @@ def quality_node(state: WorkflowState) -> WorkflowState:
 def build_workflow():
     graph = StateGraph(WorkflowState)
     graph.add_node("route", route_node)
+    graph.add_node("blocked", blocked_node)
     graph.add_node("research", research_node)
     graph.add_node("blog", blog_node)
     graph.add_node("linkedin", linkedin_node)
@@ -338,6 +373,7 @@ def build_workflow():
         "route",
         lambda s: s["route"],
         {
+            "blocked": "blocked",
             "research": "research",
             "blog": "blog",
             "linkedin": "linkedin",
@@ -348,6 +384,7 @@ def build_workflow():
 
     for node in ["research", "blog", "linkedin", "image", "strategy"]:
         graph.add_edge(node, "quality")
+    graph.add_edge("blocked", END)
     graph.add_edge("quality", END)
 
     return graph.compile()

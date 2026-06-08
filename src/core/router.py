@@ -2,6 +2,7 @@ import re
 from typing import Any, Literal, Optional
 
 Route = Literal[
+    "blocked",
     "research",
     "blog",
     "linkedin",
