@@ -5,6 +5,10 @@ from src.utils.content_optimization import (
     readability_score,
 )
 
+BLOG_REVIEW_THRESHOLD = 50.0
+LINKEDIN_REVIEW_THRESHOLD = 60.0
+RESEARCH_REVIEW_THRESHOLD = 70.0
+
 
 def quality_score(content: str) -> float:
     text = (content or "").strip()
@@ -125,16 +129,36 @@ def evaluate_outputs(outputs: dict, errors: list[str] = None) -> dict:
     if errors:
         scores["overall"] = max(0.0, round(scores["overall"] - min(15.0, len(errors) * 5.0), 2))
 
+    review_required = {
+        "blog": blog_score < BLOG_REVIEW_THRESHOLD,
+        "linkedin": linkedin_score < LINKEDIN_REVIEW_THRESHOLD,
+        "research": research_score < RESEARCH_REVIEW_THRESHOLD,
+    }
+
     improvements = []
     improvements.extend(blog_improvements)
     improvements.extend(linkedin_improvements)
-    if research_score < 70:
+    if review_required["research"]:
         improvements.append("Add more concrete data points or citations in research summary.")
+    if review_required["blog"]:
+        improvements.append(
+            f"Human review recommended because blog score is below {int(BLOG_REVIEW_THRESHOLD)}."
+        )
+    if review_required["linkedin"]:
+        improvements.append(
+            f"Human review recommended because LinkedIn score is below {int(LINKEDIN_REVIEW_THRESHOLD)}."
+        )
     if errors:
         improvements.append("Review fallback outputs because one or more agents hit an execution error.")
 
     return {
         "scores": scores,
+        "thresholds": {
+            "blog": BLOG_REVIEW_THRESHOLD,
+            "linkedin": LINKEDIN_REVIEW_THRESHOLD,
+            "research": RESEARCH_REVIEW_THRESHOLD,
+        },
+        "review_required": review_required,
         "improvements": improvements,
         "errors": errors,
         "metrics": {
