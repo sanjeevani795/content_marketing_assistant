@@ -3,6 +3,7 @@ import re
 from src.utils.content_optimization import (
     analyze_linkedin_post,
     analyze_seo_content,
+    extract_keywords,
     keyword_density,
     optimize_for_seo,
     optimize_linkedin_post,
@@ -65,3 +66,24 @@ def test_optimize_linkedin_post_enforces_length_and_hashtags():
 def test_keyword_density_reports_percentage():
     content = "SEO strategy improves results. A clear SEO strategy creates better planning."
     assert keyword_density(content, "seo strategy") > 0
+
+
+def test_extract_keywords_ignores_generic_blog_terms_and_keeps_real_topic():
+    keywords = extract_keywords(
+        "Write an SEO optimized 200 words blog about https://omnijobs.io/en about why should I use this website for job search?"
+    )
+    assert keywords[0] == "omnijobs"
+    assert "word" not in keywords
+    assert "words" not in keywords
+    assert "blog" not in keywords
+
+
+def test_optimize_for_seo_limits_keyword_density_filler_repetition():
+    optimized = optimize_for_seo(
+        "Short draft about productivity.",
+        primary_keyword="word",
+        secondary_keywords=["startup"],
+    )
+
+    assert optimized.count("practical way to execute faster") == 0
+    assert optimized.count("Add one more example, one customer proof point") <= 2

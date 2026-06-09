@@ -18,6 +18,26 @@ def extract_keywords(user_query: str) -> list[str]:
         "create",
         "write",
         "generate",
+        "blog",
+        "blogs",
+        "post",
+        "posts",
+        "article",
+        "articles",
+        "word",
+        "words",
+        "guide",
+        "draft",
+        "website",
+        "site",
+        "optimized",
+        "linkedin",
+        "http",
+        "https",
+        "www",
+        "com",
+        "en",
+        "io",
     }
     filtered = [t for t in tokens if len(t) > 3 and t not in stop]
     seen = set()
@@ -75,6 +95,20 @@ def _count_syllables(word: str) -> int:
     if cleaned.endswith("e") and syllables > 1:
         syllables -= 1
     return max(1, syllables)
+
+
+def _build_dilution_paragraph(words_needed: int) -> str:
+    neutral_sentences = [
+        "Add one more example, one customer proof point, and one distribution note to keep the article balanced and readable.",
+        "Include a practical implementation detail so the guidance feels specific, useful, and easier to apply in a real workflow.",
+        "A short note on measurement, iteration, and execution can make the article more complete without repeating the same phrase.",
+    ]
+    parts = []
+    while len(_word_tokens(" ".join(parts))) < words_needed:
+        parts.append(neutral_sentences[len(parts) % len(neutral_sentences)])
+        if len(parts) >= len(neutral_sentences):
+            break
+    return " ".join(parts)
 
 
 def readability_score(text: str) -> float:
@@ -154,7 +188,7 @@ def _ensure_h2_h3(content: str, primary_keyword: str) -> str:
         h3_block = [
             "",
             "### Execution Tips",
-            f"Prioritize examples, proof points, and one clear CTA to keep the {primary_keyword} narrative focused.",
+            "Prioritize examples, proof points, and one clear CTA to keep the narrative focused.",
         ]
         lines[insertion_index:insertion_index] = h3_block
 
@@ -165,22 +199,29 @@ def _ensure_keyword_density(content: str, primary_keyword: str) -> str:
     words = _word_tokens(content)
     minimum, maximum = _desired_keyword_bounds(len(words))
     current = _keyword_occurrences(content, primary_keyword)
+    density_fillers = [
+        f"{primary_keyword.title()} gives teams a clearer path from planning to execution.",
+        f"Strong {primary_keyword} decisions work best when they connect audience needs to measurable outcomes.",
+        f"Use {primary_keyword} as the thread that keeps strategy, distribution, and conversion aligned.",
+    ]
+    insertion_count = 0
 
-    while current < minimum:
-        content += (
-            f"\n\nThis {primary_keyword} guide gives marketing teams a practical way to execute faster."
-        )
-        words = _word_tokens(content)
-        minimum, maximum = _desired_keyword_bounds(len(words))
-        current += 1
-
-    while words and current > maximum:
-        content += (
-            "\n\nAdd one more example, one customer proof point, and one distribution note to keep the article balanced and readable."
-        )
+    while current < minimum and insertion_count < len(density_fillers):
+        content += f"\n\n{density_fillers[insertion_count]}"
         words = _word_tokens(content)
         minimum, maximum = _desired_keyword_bounds(len(words))
         current = _keyword_occurrences(content, primary_keyword)
+        insertion_count += 1
+
+    dilution_count = 0
+    while words and current > maximum and dilution_count < 2:
+        required_total_words = max(len(words), math.ceil(current / 0.02))
+        extra_words_needed = max(20, required_total_words - len(words))
+        content += f"\n\n{_build_dilution_paragraph(extra_words_needed)}"
+        words = _word_tokens(content)
+        minimum, maximum = _desired_keyword_bounds(len(words))
+        current = _keyword_occurrences(content, primary_keyword)
+        dilution_count += 1
 
     return content
 
@@ -211,8 +252,13 @@ def _fit_to_length(text: str, minimum: int, maximum: int) -> str:
 
 def generate_meta_description(content: str, primary_keyword: str) -> str:
     title = _extract_title(content, primary_keyword)
+    title_fragment = (
+        "a practical framework"
+        if title.lower() == primary_keyword.lower()
+        else title.lower()
+    )
     base = (
-        f"Learn {primary_keyword} through {title.lower()}, practical examples, stronger headers, "
+        f"Learn {primary_keyword} through {title_fragment}, practical examples, stronger headers, "
         "internal linking ideas, and actionable steps your team can publish and repurpose fast."
     )
     return _fit_to_length(base, 150, 160)
@@ -224,7 +270,7 @@ def internal_link_suggestions(
     supporting = [keyword for keyword in (secondary_keywords or []) if keyword != primary_keyword]
     suggestions = [
         f"Link to a pillar page about {primary_keyword}.",
-        f"Add a supporting link to a case study showing {primary_keyword} results.",
+        "Add a supporting link to a case study showing measurable results on this topic.",
         "Connect to a CTA page, template, or workflow checklist for conversion.",
     ]
     for keyword in supporting[:2]:
@@ -248,7 +294,6 @@ def optimize_for_seo(
 ) -> str:
     optimized = _ensure_h1(content, primary_keyword)
     optimized = _ensure_h2_h3(optimized, primary_keyword)
-    optimized = _ensure_keyword_density(optimized, primary_keyword)
     optimized = _append_internal_links(optimized, primary_keyword, secondary_keywords)
 
     meta_line = "Meta Description:"
