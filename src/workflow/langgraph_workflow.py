@@ -1,4 +1,6 @@
+import re
 from datetime import datetime
+from typing import Optional
 
 from langgraph.graph import END, StateGraph
 
@@ -8,7 +10,7 @@ from src.agents.image_generator import generate_image
 from src.agents.linkedin_writer import refine_linkedin_post, write_linkedin_post
 from src.agents.research_agent import run_research
 from src.core.observability import traceable
-from src.core.router import build_topic, infer_intent, is_refinement_query
+from src.core.router import build_topic, infer_intent, is_refinement_query, normalize_topic
 from src.core.safety import assess_request_safety
 from src.utils.content_optimization import extract_keywords
 from src.utils.quality_validation import evaluate_outputs
@@ -123,6 +125,35 @@ def _prior_output_for_route(state: WorkflowState, route: str):
     return outputs.get(key_map.get(route, ""))
 
 
+def _research_reference_links(state: WorkflowState) -> list[str]:
+    research = state.get("research") or _prior_output_for_route(state, "research") or {}
+    if not isinstance(research, dict):
+        return []
+
+    links = []
+    for source in research.get("sources", []):
+        if not isinstance(source, dict):
+            continue
+        url = source.get("url", "").strip()
+        if url.startswith(("http://", "https://")) and url not in links:
+            links.append(url)
+    return links[:3]
+
+
+def _linkedin_hashtag_count(state: WorkflowState) -> Optional[int]:
+    texts = [state["user_query"]]
+    texts.extend(
+        turn.get("content", "")
+        for turn in reversed(state.get("chat_history") or [])
+        if turn.get("role") == "user"
+    )
+    for text in texts:
+        match = re.search(r"\b(\d{1,2})\s+hashtags?\b", text, flags=re.IGNORECASE)
+        if match:
+            return min(20, max(1, int(match.group(1))))
+    return None
+
+
 def _get_blog(state: WorkflowState, research_summary: str) -> tuple[str, str]:
     try:
         prior_blog = _prior_output_for_route(state, "blog")
@@ -156,6 +187,8 @@ def _get_blog(state: WorkflowState, research_summary: str) -> tuple[str, str]:
 def _get_linkedin(state: WorkflowState, research_summary: str) -> tuple[str, str]:
     try:
         prior_post = _prior_output_for_route(state, "linkedin")
+        reference_links = _research_reference_links(state)
+        hashtag_count = _linkedin_hashtag_count(state)
         if state.get("refinement_request") and isinstance(prior_post, str) and prior_post.strip():
             return (
                 refine_linkedin_post(
@@ -163,11 +196,19 @@ def _get_linkedin(state: WorkflowState, research_summary: str) -> tuple[str, str
                     instruction=state["user_query"],
                     topic=state["topic"],
                     research_summary=research_summary,
+                    reference_links=reference_links,
+                    hashtag_count=hashtag_count,
                 ),
                 "ok",
             )
         return (
-            write_linkedin_post(topic=state["topic"], research_summary=research_summary),
+            write_linkedin_post(
+                topic=state["topic"],
+                research_summary=research_summary,
+                instruction=state["user_query"],
+                reference_links=reference_links,
+                hashtag_count=hashtag_count,
+            ),
             "ok",
         )
     except Exception as exc:
@@ -241,7 +282,7 @@ def route_node(state: WorkflowState) -> WorkflowState:
         state["refinement_request"] = refinement_request
         state["intent_scores"] = scores
         if refinement_request:
-            prior_topic = _prior_topic_context(state)
+            prior_topic = normalize_topic(_prior_topic_context(state))
             state["topic"] = prior_topic
             state["keywords"] = extract_keywords(prior_topic)
         else:

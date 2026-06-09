@@ -60,7 +60,15 @@ def test_workflow_recovers_from_blog_failure(monkeypatch):
 
 
 def test_workflow_refines_previous_linkedin_post(monkeypatch):
-    def fake_refine_linkedin_post(current_draft, instruction, topic, research_summary, include_hashtags=True):
+    def fake_refine_linkedin_post(
+        current_draft,
+        instruction,
+        topic,
+        research_summary,
+        include_hashtags=True,
+        reference_links=None,
+        hashtag_count=None,
+    ):
         assert "Original LinkedIn Post" in current_draft
         assert instruction == "Refine this post"
         return "Refined LinkedIn Post"
@@ -91,7 +99,15 @@ def test_workflow_refines_previous_linkedin_post(monkeypatch):
 
 
 def test_workflow_trim_previous_linkedin_post_uses_refinement(monkeypatch):
-    def fake_refine_linkedin_post(current_draft, instruction, topic, research_summary, include_hashtags=True):
+    def fake_refine_linkedin_post(
+        current_draft,
+        instruction,
+        topic,
+        research_summary,
+        include_hashtags=True,
+        reference_links=None,
+        hashtag_count=None,
+    ):
         assert current_draft == "Original LinkedIn Post"
         assert instruction == "Trim the previous LinkedIn post to stay within the 1300-1600 character sweet spot."
         assert topic == "AI content strategy for founders"
@@ -130,6 +146,74 @@ def test_workflow_trim_previous_linkedin_post_uses_refinement(monkeypatch):
     assert result["refinement_request"] is True
     assert result["topic"] == "AI content strategy for founders"
     assert result["outputs"]["linkedin_post"] == "Trimmed LinkedIn Post"
+
+
+def test_linkedin_review_does_not_reuse_old_questions(monkeypatch):
+    def fake_refine_linkedin_post(
+        current_draft,
+        instruction,
+        topic,
+        research_summary,
+        include_hashtags=True,
+        reference_links=None,
+        hashtag_count=None,
+    ):
+        assert current_draft == "Founders should document workflows early."
+        assert instruction.endswith("Provide links for reference.")
+        assert topic == "Why founders should document workflows early."
+        assert reference_links == ["https://example.com/workflow-documentation"]
+        assert hashtag_count == 5
+        return "Revised LinkedIn Post"
+
+    monkeypatch.setattr(workflow_module, "refine_linkedin_post", fake_refine_linkedin_post)
+
+    prior_run = {
+        "route": "linkedin",
+        "outputs": {
+            "linkedin_post": "Founders should document workflows early.",
+            "research_report": {
+                "summary": "Documented workflows support consistent execution.",
+                "query": (
+                    "Original topic context: update the blog about best AI productivity tools "
+                    "and make it a LinkedIn post.\n"
+                    "Follow-up request: Create a LinkedIn post from this idea: "
+                    "'Why founders should document workflows early.' Keep it punchy and include 5 hashtags."
+                ),
+                "sources": [
+                    {
+                        "title": "Workflow documentation reference",
+                        "url": "https://example.com/workflow-documentation",
+                    }
+                ],
+            },
+        },
+    }
+    chat_history = [
+        {
+            "role": "user",
+            "content": "Update the blog about best AI productivity tools and make it a LinkedIn post.",
+        },
+        {"role": "assistant", "content": "Completed `linkedin` workflow."},
+        {
+            "role": "user",
+            "content": (
+                "Create a LinkedIn post from this idea: "
+                "'Why founders should document workflows early.' Keep it punchy and include 5 hashtags."
+            ),
+        },
+        {"role": "assistant", "content": "Completed `linkedin` workflow with quality score 62.33."},
+    ]
+
+    result = run_workflow(
+        "Revise this linkedin draft with the following human review notes: Provide links for reference.",
+        chat_history=chat_history,
+        prior_run=prior_run,
+    )
+
+    assert result["route"] == "linkedin"
+    assert result["route_source"] == "refinement_followup"
+    assert result["topic"] == "Why founders should document workflows early."
+    assert result["outputs"]["linkedin_post"] == "Revised LinkedIn Post"
 
 
 def test_workflow_refinement_prefers_previous_blog_route(monkeypatch):

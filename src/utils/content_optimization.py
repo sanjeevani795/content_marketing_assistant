@@ -321,7 +321,7 @@ def _split_hashtag_block(text: str) -> tuple[str, list[str]]:
     return body, hashtags
 
 
-def _unique_hashtags(topic: str) -> list[str]:
+def _unique_hashtags(topic: str, limit: int = 10) -> list[str]:
     topic_tokens = [token for token in extract_keywords(topic) if token.isalnum()][:5]
     tags = [
         "#ContentMarketing",
@@ -345,7 +345,7 @@ def _unique_hashtags(topic: str) -> list[str]:
         if normalized not in seen:
             deduped.append(tag)
             seen.add(normalized)
-    return deduped[:10]
+    return deduped[:limit]
 
 
 def _ensure_hook(body: str, topic: str) -> str:
@@ -412,7 +412,11 @@ def _optimize_line_breaks(body: str) -> str:
 
 
 def optimize_linkedin_post(
-    content: str, topic: str, research_summary: str, include_hashtags: bool = True
+    content: str,
+    topic: str,
+    research_summary: str,
+    include_hashtags: bool = True,
+    hashtag_count: Optional[int] = None,
 ) -> str:
     body, _ = _split_hashtag_block(content)
     body = _ensure_hook(body, topic)
@@ -422,7 +426,8 @@ def optimize_linkedin_post(
     if len(body) > 1510:
         body = body[:1510].rsplit(" ", 1)[0].rstrip(" ,;:-") + "?"
 
-    hashtags = _unique_hashtags(topic) if include_hashtags else []
+    hashtag_limit = hashtag_count if hashtag_count is not None else 10
+    hashtags = _unique_hashtags(topic, limit=hashtag_limit) if include_hashtags else []
     if include_hashtags:
         hashtag_line = " ".join(hashtags)
         while len(body) + 4 + len(hashtag_line) < 1300:

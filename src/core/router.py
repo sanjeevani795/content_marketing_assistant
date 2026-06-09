@@ -85,6 +85,34 @@ def _is_follow_up_query(query: str) -> bool:
     return any(token in FOLLOW_UP_TERMS for token in tokens)
 
 
+def normalize_topic(topic: str) -> str:
+    cleaned = topic.strip()
+    if "Follow-up request:" in cleaned:
+        cleaned = cleaned.rsplit("Follow-up request:", 1)[-1].strip()
+
+    idea_match = re.search(
+        r"\b(?:this\s+)?idea\s*:\s*[\"'‘“](.+?)[\"'’”](?:\s|$)",
+        cleaned,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if idea_match:
+        return idea_match.group(1).strip()
+
+    return cleaned
+
+
+def _has_explicit_topic(query: str) -> bool:
+    if re.search(
+        r"\b(?:this\s+)?idea\s*:\s*[\"'‘“].+?[\"'’”]",
+        query,
+        flags=re.IGNORECASE | re.DOTALL,
+    ):
+        return True
+
+    colon_context = query.split(":", 1)
+    return len(colon_context) == 2 and len(_query_tokens(colon_context[1])) >= 4
+
+
 def is_refinement_query(query: str) -> bool:
     tokens = _query_tokens(query)
     if not tokens:
@@ -193,15 +221,15 @@ def _last_assistant_route(chat_history: Optional[list[dict[str, str]]]) -> Optio
 def build_topic(user_query: str, chat_history: Optional[list[dict[str, str]]] = None) -> str:
     prior_messages = _prior_user_messages(chat_history, user_query)
     if not prior_messages:
-        return user_query
+        return normalize_topic(user_query)
 
-    if _is_follow_up_query(user_query):
+    if _is_follow_up_query(user_query) and not _has_explicit_topic(user_query):
         return (
             f"Original topic context: {prior_messages[-1]}\n"
             f"Follow-up request: {user_query}"
         )
 
-    return user_query
+    return normalize_topic(user_query)
 
 
 def infer_intent(

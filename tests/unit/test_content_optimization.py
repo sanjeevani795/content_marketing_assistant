@@ -63,6 +63,18 @@ def test_optimize_linkedin_post_enforces_length_and_hashtags():
     assert metrics["paragraph_count"] >= 4
 
 
+def test_optimize_linkedin_post_honors_requested_hashtag_count():
+    optimized = optimize_linkedin_post(
+        "Founders scale decisions faster when the workflow is documented early.",
+        topic="Why founders should document workflows early",
+        research_summary="Documented processes improve consistency and onboarding.",
+        include_hashtags=True,
+        hashtag_count=5,
+    )
+
+    assert len(re.findall(r"#\w+", optimized)) == 5
+
+
 def test_keyword_density_reports_percentage():
     content = "SEO strategy improves results. A clear SEO strategy creates better planning."
     assert keyword_density(content, "seo strategy") > 0

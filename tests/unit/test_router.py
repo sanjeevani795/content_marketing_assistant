@@ -50,6 +50,22 @@ def test_build_topic_uses_previous_user_context_for_follow_up():
     assert "Original topic context: Research AI GTM strategy for SaaS founders" in topic
 
 
+def test_build_topic_prefers_explicit_idea_over_old_history():
+    topic = build_topic(
+        "Create a LinkedIn post from this idea: 'Why founders should document workflows early.' Keep it punchy and include 5 hashtags.",
+        chat_history=[
+            {
+                "role": "user",
+                "content": "Update the blog about best AI productivity tools and make it a LinkedIn post.",
+            },
+            {"role": "assistant", "content": "Completed `linkedin` workflow."},
+        ],
+    )
+
+    assert topic == "Why founders should document workflows early."
+    assert "Original topic context" not in topic
+
+
 def test_detects_refinement_query():
     assert is_refinement_query("Refine this post") is True
     assert is_refinement_query("Make it shorter") is True
