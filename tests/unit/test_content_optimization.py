@@ -75,6 +75,33 @@ def test_optimize_linkedin_post_honors_requested_hashtag_count():
     assert len(re.findall(r"#\w+", optimized)) == 5
 
 
+def test_optimize_linkedin_post_compacts_and_cleans_prompt_text():
+    malformed = (
+        "What changes when your Turn this rough topic into a full campaign: "
+        "‘Reducing churn with better user education.’ content finally sounds useful?\n\n"
+        "Teach users how to reach value sooner.\n\n"
+        "One pattern I keep seeing: teams get better results when Turn this rough topic "
+        "into a full campaign: ‘Reducing churn with better user education.’ is tied to one goal."
+    )
+
+    optimized = optimize_linkedin_post(
+        malformed,
+        topic="Reducing churn with better user education.",
+        research_summary="Education improves onboarding and product adoption.",
+        include_hashtags=True,
+        hashtag_count=4,
+        minimum_characters=0,
+        maximum_characters=700,
+    )
+
+    assert len(optimized) <= 700
+    assert "Turn this rough topic" not in optimized
+    assert "One pattern I keep seeing" not in optimized
+    assert "If you were refining your" not in optimized
+    assert "Reducing churn with better user education" in optimized
+    assert len(re.findall(r"#\w+", optimized)) == 4
+
+
 def test_keyword_density_reports_percentage():
     content = "SEO strategy improves results. A clear SEO strategy creates better planning."
     assert keyword_density(content, "seo strategy") > 0

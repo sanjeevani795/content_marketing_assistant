@@ -90,13 +90,13 @@ def normalize_topic(topic: str) -> str:
     if "Follow-up request:" in cleaned:
         cleaned = cleaned.rsplit("Follow-up request:", 1)[-1].strip()
 
-    idea_match = re.search(
-        r"\b(?:this\s+)?idea\s*:\s*[\"'‘“](.+?)[\"'’”](?:\s|$)",
+    quoted_topic_match = re.search(
+        r":\s*[\"'‘“](.+?)[\"'’”](?:[.!?]?\s|$)",
         cleaned,
         flags=re.IGNORECASE | re.DOTALL,
     )
-    if idea_match:
-        return idea_match.group(1).strip()
+    if quoted_topic_match:
+        return quoted_topic_match.group(1).strip()
 
     return cleaned
 

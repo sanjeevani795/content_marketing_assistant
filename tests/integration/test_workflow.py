@@ -216,6 +216,56 @@ def test_linkedin_review_does_not_reuse_old_questions(monkeypatch):
     assert result["outputs"]["linkedin_post"] == "Revised LinkedIn Post"
 
 
+def test_workflow_shortens_and_cleans_existing_linkedin_post():
+    malformed_post = (
+        "What changes when your Turn this rough topic into a full campaign: "
+        "‘Reducing churn with better user education.’ content finally sounds useful?\n\n"
+        "Customer education helps users reach value sooner and improves retention.\n\n"
+        "One pattern I keep seeing: teams get better results when Turn this rough topic "
+        "into a full campaign: ‘Reducing churn with better user education.’ is tied to one goal.\n\n"
+        "If you were refining your Turn this rough topic into a full campaign: "
+        "‘Reducing churn with better user education.’ approach, where would you start?"
+    )
+    prior_run = {
+        "route": "linkedin",
+        "outputs": {
+            "linkedin_post": malformed_post,
+            "research_report": {
+                "summary": "Customer education improves onboarding and adoption.",
+                "query": (
+                    "Turn this rough topic into a full campaign: "
+                    "‘Reducing churn with better user education.’"
+                ),
+                "sources": [],
+            },
+        },
+    }
+    chat_history = [
+        {
+            "role": "user",
+            "content": (
+                "Turn this rough topic into a full campaign: "
+                "‘Reducing churn with better user education.’"
+            ),
+        },
+        {"role": "assistant", "content": "Completed `strategy` workflow."},
+    ]
+
+    result = run_workflow(
+        "Shorten the LinkedIn post.",
+        chat_history=chat_history,
+        prior_run=prior_run,
+    )
+    linkedin_post = result["outputs"]["linkedin_post"]
+
+    assert result["route"] == "linkedin"
+    assert result["topic"] == "Reducing churn with better user education."
+    assert len(linkedin_post) <= 700
+    assert "Turn this rough topic" not in linkedin_post
+    assert "One pattern I keep seeing" not in linkedin_post
+    assert "If you were refining your" not in linkedin_post
+
+
 def test_workflow_refinement_prefers_previous_blog_route(monkeypatch):
     def fake_refine_blog(current_draft, instruction, topic, research_summary, keywords):
         assert "Original Blog Draft" in current_draft

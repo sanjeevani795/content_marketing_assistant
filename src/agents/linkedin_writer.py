@@ -14,6 +14,35 @@ def _requested_hashtag_count(*instructions: str) -> Optional[int]:
     return None
 
 
+def _requested_character_range(instruction: str) -> tuple[int, int]:
+    range_match = re.search(
+        r"\b(\d{2,4})\s*[-–]\s*(\d{2,4})\s*(?:characters?|chars?)?\b",
+        instruction,
+        flags=re.IGNORECASE,
+    )
+    if range_match:
+        minimum = int(range_match.group(1))
+        maximum = int(range_match.group(2))
+        return min(minimum, maximum), max(minimum, maximum)
+
+    maximum_match = re.search(
+        r"\b(?:under|within|max(?:imum)?(?:\s+of)?)\s+(\d{2,4})\s*(?:characters?|chars?)\b",
+        instruction,
+        flags=re.IGNORECASE,
+    )
+    if maximum_match:
+        return 0, int(maximum_match.group(1))
+
+    if re.search(
+        r"\b(?:shorten|shorter|condense|concise|brief|trim)\b",
+        instruction,
+        flags=re.IGNORECASE,
+    ):
+        return 0, 700
+
+    return 1300, 1600
+
+
 def _reference_context(reference_links: Optional[list[str]]) -> str:
     links = [link for link in (reference_links or []) if link.startswith(("http://", "https://"))]
     if not links:
@@ -48,6 +77,7 @@ def write_linkedin_post(
 ) -> str:
     llm = OpenAIClient()
     hashtag_count = hashtag_count or _requested_hashtag_count(instruction, topic)
+    minimum_characters, maximum_characters = _requested_character_range(instruction)
 
     if llm.enabled:
         post = llm.generate(
@@ -80,6 +110,8 @@ def write_linkedin_post(
         research_summary=research_summary,
         include_hashtags=include_hashtags,
         hashtag_count=hashtag_count,
+        minimum_characters=minimum_characters,
+        maximum_characters=maximum_characters,
     )
 
 
@@ -95,6 +127,7 @@ def refine_linkedin_post(
 ) -> str:
     llm = OpenAIClient()
     hashtag_count = hashtag_count or _requested_hashtag_count(instruction, topic)
+    minimum_characters, maximum_characters = _requested_character_range(instruction)
 
     if llm.enabled:
         refined = llm.generate(
@@ -113,10 +146,7 @@ def refine_linkedin_post(
             temperature=0.5,
         )
     else:
-        refined = (
-            current_draft.rstrip()
-            + f"\n\nRefinement request applied: {instruction}"
-        )
+        refined = current_draft.rstrip()
     refined = _append_requested_references(refined, instruction, reference_links)
 
     return optimize_linkedin_post(
@@ -125,4 +155,6 @@ def refine_linkedin_post(
         research_summary=research_summary,
         include_hashtags=include_hashtags,
         hashtag_count=hashtag_count,
+        minimum_characters=minimum_characters,
+        maximum_characters=maximum_characters,
     )

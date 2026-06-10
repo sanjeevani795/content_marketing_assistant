@@ -66,6 +66,14 @@ def test_build_topic_prefers_explicit_idea_over_old_history():
     assert "Original topic context" not in topic
 
 
+def test_build_topic_extracts_quoted_campaign_topic():
+    topic = build_topic(
+        "Turn this rough topic into a full campaign: ‘Reducing churn with better user education.’"
+    )
+
+    assert topic == "Reducing churn with better user education."
+
+
 def test_detects_refinement_query():
     assert is_refinement_query("Refine this post") is True
     assert is_refinement_query("Make it shorter") is True

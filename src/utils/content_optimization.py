@@ -321,6 +321,32 @@ def _split_hashtag_block(text: str) -> tuple[str, list[str]]:
     return body, hashtags
 
 
+def _sanitize_linkedin_prompt_leakage(content: str) -> str:
+    cleaned = re.sub(
+        r"\b(?:turn|transform|create|write|make)\s+[^.\n]{0,140}?:\s*[\"'‘“](.+?)[\"'’”]",
+        lambda match: match.group(1).strip(),
+        content,
+        flags=re.IGNORECASE,
+    )
+    paragraphs = []
+    for paragraph in cleaned.split("\n\n"):
+        normalized = paragraph.strip().lower()
+        if normalized.startswith(
+            (
+                "original topic context:",
+                "follow-up request:",
+                "refinement request applied:",
+                "one pattern i keep seeing:",
+                "if you were refining your",
+            )
+        ):
+            continue
+        if normalized.startswith("what changes when your") and "content finally sounds" in normalized:
+            continue
+        paragraphs.append(paragraph)
+    return "\n\n".join(paragraphs).strip()
+
+
 def _unique_hashtags(topic: str, limit: int = 10) -> list[str]:
     topic_tokens = [token for token in extract_keywords(topic) if token.isalnum()][:5]
     tags = [
@@ -355,7 +381,8 @@ def _ensure_hook(body: str, topic: str) -> str:
     first = paragraphs[0]
     if "?" in first:
         return body
-    hook = f"What changes when your {topic} content finally sounds like it belongs to one strategy?"
+    clean_topic = topic.rstrip(" .!?")
+    hook = f"What changes when teams get serious about {clean_topic}?"
     return hook + "\n\n" + body
 
 
@@ -411,39 +438,70 @@ def _optimize_line_breaks(body: str) -> str:
     return "\n\n".join(paragraphs)
 
 
+def _compact_cta(topic: str) -> str:
+    keywords = extract_keywords(topic)
+    if keywords:
+        return f"What would you improve first in your {keywords[0]} workflow?"
+    return "What would you improve first?"
+
+
+def _fit_compact_body(body: str, topic: str, maximum: int) -> str:
+    cta = _compact_cta(topic)
+    paragraphs = [part.strip() for part in body.split("\n\n") if part.strip()]
+    if paragraphs and paragraphs[-1].endswith("?"):
+        paragraphs = paragraphs[:-1]
+    main_body = "\n\n".join(paragraphs).strip()
+    allowed_main = max(0, maximum - len(cta) - 2)
+    if len(main_body) > allowed_main:
+        main_body = main_body[:allowed_main].rsplit(" ", 1)[0].rstrip(" ,;:-")
+        if main_body and main_body[-1] not in ".!?":
+            main_body += "."
+    return f"{main_body}\n\n{cta}".strip()
+
+
 def optimize_linkedin_post(
     content: str,
     topic: str,
     research_summary: str,
     include_hashtags: bool = True,
     hashtag_count: Optional[int] = None,
+    minimum_characters: int = 1300,
+    maximum_characters: int = 1600,
 ) -> str:
-    body, _ = _split_hashtag_block(content)
+    body, _ = _split_hashtag_block(_sanitize_linkedin_prompt_leakage(content))
     body = _ensure_hook(body, topic)
-    body = _expand_or_trim_body(body, topic, research_summary)
+    compact_mode = minimum_characters == 0 or maximum_characters < 1300
+    if not compact_mode:
+        body = _expand_or_trim_body(body, topic, research_summary)
     body = _optimize_line_breaks(body)
 
-    if len(body) > 1510:
+    if not compact_mode and len(body) > 1510:
         body = body[:1510].rsplit(" ", 1)[0].rstrip(" ,;:-") + "?"
 
     hashtag_limit = hashtag_count if hashtag_count is not None else 10
     hashtags = _unique_hashtags(topic, limit=hashtag_limit) if include_hashtags else []
     if include_hashtags:
         hashtag_line = " ".join(hashtags)
-        while len(body) + 4 + len(hashtag_line) < 1300:
+        maximum_body = maximum_characters - len(hashtag_line) - 2
+        if compact_mode:
+            body = _fit_compact_body(body, topic, maximum_body)
+            return body.strip() + "\n\n" + hashtag_line
+        while len(body) + 4 + len(hashtag_line) < minimum_characters:
             body += "\n\nThe teams that win here usually communicate with more clarity, more proof, and more personality."
         body = _ensure_cta(body, topic)
-        if len(body) + 4 + len(hashtag_line) > 1600:
-            allowed = 1600 - len(hashtag_line) - 4
+        if len(body) + 4 + len(hashtag_line) > maximum_characters:
+            allowed = maximum_characters - len(hashtag_line) - 4
             body = body[:allowed].rsplit(" ", 1)[0].rstrip(" ,;:-") + "."
             body = _ensure_cta(body, topic)
         return body.strip() + "\n\n" + hashtag_line
 
-    if len(body) < 1300:
+    if compact_mode:
+        return _fit_compact_body(body, topic, maximum_characters)
+    if len(body) < minimum_characters:
         body = _expand_or_trim_body(body, topic, research_summary)
     body = _ensure_cta(body, topic)
-    if len(body) > 1600:
-        body = body[:1600].rsplit(" ", 1)[0].rstrip(" ,;:-") + "."
+    if len(body) > maximum_characters:
+        body = body[:maximum_characters].rsplit(" ", 1)[0].rstrip(" ,;:-") + "."
         body = _ensure_cta(body, topic)
     return body.strip()
 
