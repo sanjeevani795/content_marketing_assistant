@@ -14,14 +14,19 @@ pinned: false
 Multi-agent app for research and content creation (blog, LinkedIn, and image concepts) with a conversational Streamlit UI.
 
 ## What It Does
-- Routes user intent to the right specialized agent
+- Routes user intent to `research`, `blog`, `linkedin`, `image`, or a multi-format `strategy` workflow
+- Treats comparison, analysis, and recommendation requests as research intent
+- Uses conversation history for ambiguous follow-ups and existing drafts for blog or LinkedIn revisions
 - Produces:
   - Research report
   - SEO blog draft
   - LinkedIn post draft
   - Image prompt/asset guidance
 - Supports combined workflows via a content strategist
-- Includes quality checks and fallback handling
+- Displays research summaries, findings, and sources in the Streamlit UI
+- Scores only the content formats generated in the current run
+- Shows quality scores, review warnings, and suggested improvements without exposing raw metrics JSON
+- Includes provider and deterministic fallback handling
 
 ## Run Locally
 1. `python -m venv .venv && source .venv/bin/activate`
@@ -29,6 +34,9 @@ Multi-agent app for research and content creation (blog, LinkedIn, and image con
 3. `cp .env.example .env`
 4. Add required secrets (at minimum `OPENAI_API_KEY`)
 5. `streamlit run app.py`
+
+## Run Tests
+`PYTHONPATH=. .venv/bin/pytest -q`
 
 ## LangSmith Observability
 - Install dependencies with `pip install -r requirements.txt`
@@ -46,7 +54,7 @@ The workflow now emits LangSmith traces for the overall run, routing, agent node
    - Optional provider keys used by research/image integrations
 4. Rebuild the Space
 
-This README includes the required HF metadata block (`sdk`, `app_file`, etc.), so the Space should launch `app.py` correctly.
+This README includes the required HF metadata block (`sdk`, `app_file`, etc.), so the Space launches `src/web_app/streamlit_app.py`.
 
 ## Project Structure
 - `src/agents/` - specialized agents
