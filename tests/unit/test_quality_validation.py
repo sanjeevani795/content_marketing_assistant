@@ -16,6 +16,27 @@ def test_quality_validation_flags_blog_and_linkedin_review_thresholds():
     assert result["review_required"]["linkedin"] is True
 
 
+def test_quality_validation_scores_only_outputs_present_in_run():
+    outputs = {
+        "research_report": {
+            "summary": "A detailed research summary. " * 60,
+            "query": "Compare AI in B2B sales content angles",
+        },
+    }
+
+    result = evaluate_outputs(outputs)
+
+    assert result["scores"]["overall"] == result["scores"]["research"]
+    assert "blog" not in result["scores"]
+    assert "linkedin" not in result["scores"]
+    assert "blog" not in result["review_required"]
+    assert "linkedin" not in result["review_required"]
+    assert "blog" not in result["metrics"]
+    assert "linkedin" not in result["metrics"]
+    assert all("blog" not in item.lower() for item in result["improvements"])
+    assert all("linkedin" not in item.lower() for item in result["improvements"])
+
+
 def test_quality_validation_does_not_flag_high_linkedin_score_for_review():
     outputs = {
         "seo_blog": "# Strong Blog\n\n## Section\n\n### Detail\n\nMeta Description: Actionable guide to AI content strategy for growth teams with examples, structure, and steps for stronger execution today.",

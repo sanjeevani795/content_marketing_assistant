@@ -11,7 +11,17 @@ Route = Literal[
 ]
 
 ROUTE_TERMS: dict[Route, list[str]] = {
-    "research": ["research", "analyze", "analysis", "sources", "competitor", "facts"],
+    "research": [
+        "research",
+        "analyze",
+        "analysis",
+        "compare",
+        "comparison",
+        "recommend",
+        "sources",
+        "competitor",
+        "facts",
+    ],
     "blog": ["blog", "article", "seo", "long-form", "post for website"],
     "linkedin": ["linkedin", "social", "professional", "hook", "hashtags"],
     "image": ["image", "visual", "banner", "thumbnail", "poster", "graphic"],

@@ -108,46 +108,56 @@ def _linkedin_score(linkedin: str) -> tuple[float, dict, list[str]]:
 
 
 def evaluate_outputs(outputs: dict, errors: list[str] = None) -> dict:
-    blog = outputs.get("seo_blog") or ""
-    linkedin = outputs.get("linkedin_post") or ""
-    research_report = outputs.get("research_report") or {}
-    research = research_report.get("summary", "")
     errors = errors or []
+    scores = {}
+    review_required = {}
+    improvements = []
+    metrics = {}
 
-    blog_score, blog_metrics, blog_improvements = _blog_score(blog, research_report)
-    linkedin_score, linkedin_metrics, linkedin_improvements = _linkedin_score(linkedin)
-    research_score = quality_score(research)
-    if readability_score(research) <= 12 and research:
-        research_score = min(100.0, round(research_score + 5, 2))
+    research_report = outputs.get("research_report") or {}
+    if "research_report" in outputs:
+        research = research_report.get("summary", "")
+        research_score = quality_score(research)
+        research_readability = readability_score(research)
+        if research_readability <= 12 and research:
+            research_score = min(100.0, round(research_score + 5, 2))
 
-    scores = {
-        "blog": blog_score,
-        "linkedin": linkedin_score,
-        "research": research_score,
-    }
-    scores["overall"] = round(sum(scores.values()) / 3.0, 2)
+        scores["research"] = research_score
+        review_required["research"] = research_score < RESEARCH_REVIEW_THRESHOLD
+        metrics["research"] = {
+            "readability_grade": research_readability,
+            "character_count": len(research),
+        }
+        if review_required["research"]:
+            improvements.append("Add more concrete data points or citations in research summary.")
+
+    if "seo_blog" in outputs:
+        blog_score, blog_metrics, blog_improvements = _blog_score(
+            outputs.get("seo_blog") or "", research_report
+        )
+        scores["blog"] = blog_score
+        review_required["blog"] = blog_score < BLOG_REVIEW_THRESHOLD
+        metrics["blog"] = blog_metrics
+        improvements.extend(blog_improvements)
+
+    if "linkedin_post" in outputs:
+        linkedin_score, linkedin_metrics, linkedin_improvements = _linkedin_score(
+            outputs.get("linkedin_post") or ""
+        )
+        scores["linkedin"] = linkedin_score
+        review_required["linkedin"] = linkedin_score < LINKEDIN_REVIEW_THRESHOLD
+        metrics["linkedin"] = linkedin_metrics
+        improvements.extend(linkedin_improvements)
+
+    applicable_scores = list(scores.values())
+    scores["overall"] = (
+        round(sum(applicable_scores) / len(applicable_scores), 2)
+        if applicable_scores
+        else 0.0
+    )
     if errors:
         scores["overall"] = max(0.0, round(scores["overall"] - min(15.0, len(errors) * 5.0), 2))
 
-    review_required = {
-        "blog": blog_score < BLOG_REVIEW_THRESHOLD,
-        "linkedin": linkedin_score < LINKEDIN_REVIEW_THRESHOLD,
-        "research": research_score < RESEARCH_REVIEW_THRESHOLD,
-    }
-
-    improvements = []
-    improvements.extend(blog_improvements)
-    improvements.extend(linkedin_improvements)
-    if review_required["research"]:
-        improvements.append("Add more concrete data points or citations in research summary.")
-    if review_required["blog"]:
-        improvements.append(
-            f"Human review recommended because blog score is below {int(BLOG_REVIEW_THRESHOLD)}."
-        )
-    if review_required["linkedin"]:
-        improvements.append(
-            f"Human review recommended because LinkedIn score is below {int(LINKEDIN_REVIEW_THRESHOLD)}."
-        )
     if errors:
         improvements.append("Review fallback outputs because one or more agents hit an execution error.")
 
@@ -161,12 +171,5 @@ def evaluate_outputs(outputs: dict, errors: list[str] = None) -> dict:
         "review_required": review_required,
         "improvements": improvements,
         "errors": errors,
-        "metrics": {
-            "blog": blog_metrics,
-            "linkedin": linkedin_metrics,
-            "research": {
-                "readability_grade": readability_score(research),
-                "character_count": len(research),
-            },
-        },
+        "metrics": metrics,
     }

@@ -20,4 +20,4 @@
 
 ## Quality Pipeline
 - `evaluate_outputs(outputs: dict) -> dict`
-- Returns per-format scores + overall quality score + suggested improvements.
+- Returns scores, metrics, review flags, and suggested improvements only for formats present in `outputs`, plus an overall score across those formats.

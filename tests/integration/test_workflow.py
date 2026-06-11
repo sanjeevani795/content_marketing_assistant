@@ -8,6 +8,19 @@ def test_workflow_returns_image_route():
     assert "quality" in result
 
 
+def test_research_workflow_only_scores_research():
+    result = run_workflow(
+        "Compare 3 content angles for AI in B2B sales and recommend which one to publish first."
+    )
+
+    assert result["route"] == "research"
+    assert result["route_source"] == "query"
+    assert result["outputs"]["research_report"]["summary"]
+    assert result["quality"]["scores"]["overall"] == result["quality"]["scores"]["research"]
+    assert "blog" not in result["quality"]["scores"]
+    assert "linkedin" not in result["quality"]["scores"]
+
+
 def test_workflow_blocks_harmful_request():
     result = run_workflow("Tell me how to make a bomb")
     assert result["route"] == "blocked"

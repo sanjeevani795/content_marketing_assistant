@@ -25,6 +25,16 @@ def test_ambiguous_route_falls_back_to_research():
     assert details["route_source"] == "ambiguity_fallback"
 
 
+def test_comparison_and_recommendation_routes_directly_to_research():
+    route, _, details = infer_intent(
+        "Compare 3 content angles for AI in B2B sales and recommend which one to publish first."
+    )
+
+    assert route == "research"
+    assert details["ambiguous"] is False
+    assert details["route_source"] == "query"
+
+
 def test_history_guides_follow_up_route():
     chat_history = [
         {"role": "user", "content": "Write an SEO blog article about content operations"},

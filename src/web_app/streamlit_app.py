@@ -195,6 +195,10 @@ def render_result(result: dict) -> None:
     if outputs.get("safety_response"):
         st.error(outputs["safety_response"])
 
+    if outputs.get("research_report"):
+        with st.expander("Research Report", expanded=True):
+            render_research_report(outputs["research_report"])
+
     if outputs.get("seo_blog"):
         with st.expander("SEO Blog Draft", expanded=True):
             st.markdown(outputs["seo_blog"])
