@@ -42,7 +42,6 @@ def render_research_report(report: dict) -> None:
 def render_quality_analysis(quality: dict) -> None:
     scores = quality.get("scores", {})
     improvements = quality.get("improvements", [])
-    metrics = quality.get("metrics", {})
     thresholds = quality.get("thresholds", {})
     review_required = quality.get("review_required", {})
 
@@ -71,10 +70,6 @@ def render_quality_analysis(quality: dict) -> None:
         st.markdown("### Suggested Improvements")
         for item in improvements:
             st.markdown(f"- {item}")
-
-    if metrics:
-        st.markdown("### Metrics")
-        st.json(metrics)
 
 
 def render_execution_notes(result: dict) -> None:
